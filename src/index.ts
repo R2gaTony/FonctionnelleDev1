@@ -30,19 +30,21 @@ type Puissance = {
 };
 
 // Constructeurs
-export function nombre(valeur: number): Nombre{
+export function nombre(valeur: number): Nombre {
     return {
         type: "nombre",
         valeur: valeur
     };
 }
-export function variable(nom: string): Variable{
+
+export function variable(nom: string): Variable {
     return {
         type: "variable",
         nom: nom
     };
 }
-export function operation(gauche: Expression, op: Operateur, droite: Expression): Expression{
+
+export function operation(gauche: Expression, op: Operateur, droite: Expression): Expression {
     return {
         type: "operation",
         gauche: gauche,
@@ -50,7 +52,8 @@ export function operation(gauche: Expression, op: Operateur, droite: Expression)
         droite: droite
     };
 }
-export function puissance(base: Expression, exposant: Nombre): Expression{
+
+export function puissance(base: Expression, exposant: Nombre): Expression {
     return {
         type: "puissance",
         base: base,
@@ -60,7 +63,7 @@ export function puissance(base: Expression, exposant: Nombre): Expression{
 
 // Sélecteurs
 export function valeur(nombre: Nombre): number {
-    return 10
+    return nombre.valeur;
 }
 
 export function nom(variable: Variable): string {
@@ -119,14 +122,76 @@ export function afficher(exp: Expression): string {
 }
 
 // Évaluer l'expression
-export function calculer(exp: Expression, env: Record<string, number>): number{
-    return 10;
+export function calculer(exp: Expression, env: Record<string, number>): number {
+    switch (exp.type) {
+        case "nombre":
+            return valeur(exp);
+
+        case "variable":
+            let val = env[exp.nom];
+            if (val == null)
+                throw new Error("La variable <<" + exp.nom + ">> n'a pas de valeurs définies");
+            return val;
+
+        case "operation":
+            const gauche = calculer(exp.gauche, env);
+            const droite = calculer(exp.droite, env);
+            switch (exp.op) {
+                case "*":
+                    if (gauche == 1)
+                        return droite;
+                    if (droite == 1)
+                        return gauche;
+                    if (gauche == 0 || droite == 0)
+                        return 0;
+
+                    return gauche * droite;
+
+                case "+":
+                    if (gauche == 0)
+                        return droite;
+                    if (droite == 0)
+                        return gauche;
+
+                    return gauche + droite;
+
+                case "-":
+                    if (droite == 0)
+                        return gauche;
+                    if (gauche == droite)
+                        return 0;
+
+                    return gauche - droite;
+
+                case "/":
+                    if (droite == 0)
+                        throw new Error("Le dénominateur d'un quotient ne peut jamais être de 0");
+                    if (droite == 1)
+                        return gauche;
+                    if (gauche == 0)
+                        return 0;
+
+                    return gauche / droite;
+
+                default:
+                    throw new Error("Cet operation: " + exp.op + " est invalide.");
+            }
+
+        case "puissance":
+            let base = calculer(exp.base, env);
+
+            if (base == 0)
+                return 0;
+
+            if (valeur(exp.exposant) == 1)
+                return base;
+
+            return base * calculer({...exp, exposant: nombre(valeur(exp.exposant) - 1)}, env);
+    }
 }
 
 
-
-
-const env = { x: 4, y: 2, z: 0 };
+const env = {x: 4, y: 2, z: 0};
 console.log(`Environnement : ${JSON.stringify(env)}`);
 const t = operation(operation(variable("x"), "+", variable("y")), "*", nombre(2));
 console.log(`Expression : ${afficher(t)}`);
