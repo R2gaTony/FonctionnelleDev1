@@ -45,6 +45,48 @@ export function variable(nom: string): Variable {
 }
 
 export function operation(gauche: Expression, op: Operateur, droite: Expression): Expression {
+    if(estNombre(gauche) && estNombre(droite))
+        switch (op) {
+            case "*":
+                return nombre(valeur(gauche) * valeur(droite));
+            case "+":
+                return nombre(valeur(gauche) + valeur(droite));
+            case "-":
+                return nombre(valeur(gauche) - valeur(droite));
+            case "/":
+                return nombre(valeur(gauche) / valeur(droite));
+            default:
+                throw new Error("Cet operation: " + op + " est invalide.");
+        }
+
+    switch (op) {
+        case "*":
+            if (estNombre(gauche) && estNombre(droite)) if (valeur(droite) == 1) return gauche; // x * 1 => x
+            if (estNombre(gauche) && estNombre(droite)) if (valeur(gauche) == 1) return droite; // 1 * x => x
+            if (estNombre(gauche)) if (valeur(gauche) == 0) return nombre(0); // 0 * x => 0
+            if (estNombre(droite)) if (valeur(droite) == 0) return nombre(0); // x * 0 => 0
+            break;
+
+        case "+":
+            if (estNombre(gauche)) if (valeur(gauche) == 0) return droite; // 0 + x => x
+            if (estNombre(droite)) if (valeur(droite) == 0) return gauche; // x + 0 => x
+            break;
+
+        case "-":
+            if (estNombre(droite)) if (valeur(droite) == 0) return gauche; // x - 0 => x
+            if (estNombre(droite) && estNombre(gauche)) if (valeur(droite) == valeur(gauche)) return nombre(0) // x - x => 0
+            break;
+
+        case "/":
+            if (estNombre(droite)) if (valeur(droite) == 0) throw new Error("Le dénominateur d'un quotient ne peut jamais être de 0");
+            if (estNombre(droite)) if (valeur(droite) == 1) return gauche; // x / 1 => x
+            if (estNombre(gauche)) if (valeur(gauche) == 0) return nombre(0); // 0 / x => 0
+            break;
+
+        default:
+            throw new Error("Cet operation: " + op + " est invalide.");
+    }
+
     return {
         type: "operation",
         gauche: gauche,
@@ -54,6 +96,11 @@ export function operation(gauche: Expression, op: Operateur, droite: Expression)
 }
 
 export function puissance(base: Expression, exposant: Nombre): Expression {
+    if(valeur(exposant) == 0) return nombre(1);
+    if(estNombre(base)) if(valeur(base) == 0) return nombre(0);
+    if(estNombre(base)) if(valeur(base) == 1) return nombre(1);
+    if(valeur(exposant) == 1) return base;
+
     return {
         type: "puissance",
         base: base,
@@ -138,62 +185,26 @@ export function calculer(exp: Expression, env: Record<string, number>): number {
             const droite = calculer(exp.droite, env);
             switch (exp.op) {
                 case "*":
-                    if (gauche == 1)
-                        return droite;
-                    if (droite == 1)
-                        return gauche;
-                    if (gauche == 0 || droite == 0)
-                        return 0;
-
                     return gauche * droite;
-
                 case "+":
-                    if (gauche == 0)
-                        return droite;
-                    if (droite == 0)
-                        return gauche;
-
                     return gauche + droite;
-
                 case "-":
-                    if (droite == 0)
-                        return gauche;
-                    if (gauche == droite)
-                        return 0;
-
                     return gauche - droite;
-
                 case "/":
-                    if (droite == 0)
-                        throw new Error("Le dénominateur d'un quotient ne peut jamais être de 0");
-                    if (droite == 1)
-                        return gauche;
-                    if (gauche == 0)
-                        return 0;
-
                     return gauche / droite;
-
                 default:
                     throw new Error("Cet operation: " + exp.op + " est invalide.");
             }
 
         case "puissance":
-            let base = calculer(exp.base, env);
-
-            if (base == 0)
-                return 0;
-
-            if (valeur(exp.exposant) == 1)
-                return base;
-
-            return base * calculer({...exp, exposant: nombre(valeur(exp.exposant) - 1)}, env);
+            return calculer(exp.base, env) ** valeur(exp.exposant);
     }
 }
 
 
 const env = {x: 4, y: 2, z: 0};
 console.log(`Environnement : ${JSON.stringify(env)}`);
-const t = operation(operation(variable("x"), "+", variable("y")), "*", nombre(2));
+const t = operation(operation(nombre(2), "/", nombre(2)), "*", nombre(2));
 console.log(`Expression : ${afficher(t)}`);
 const r = calculer(t, env);
 console.log(`Résultat de l'expression ${afficher(t)} avec l'environnement
